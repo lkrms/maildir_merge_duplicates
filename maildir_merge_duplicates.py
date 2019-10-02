@@ -191,13 +191,10 @@ def selectMails(mails, entryOut):
 	entryOut.fileRenameTo = filePathNew
    
 
-def buildDecisionTable(maildirPath, listIn, listOut):
+def buildDecisionTable(listIn, listOut):
     '''Build a decision table for the found duplicates. listIn is expected to in
     format that buildDuplicatesList has created. The decision table consists of
     an array with elements of type decisionTableEntry.'''
-
-    maildirPathCur = os.path.join(maildirPath, "cur")
-    maildirPathNew = os.path.join(maildirPath, "new")
 
     for keyIn in listIn:
 
@@ -209,10 +206,10 @@ def buildDecisionTable(maildirPath, listIn, listOut):
 	mailsInNew = []
 	mailsInCur = []
 	for keyIn2 in keyIn:
-	    if os.path.dirname(keyIn2) == maildirPathCur :
-		mailsInCur.append(keyIn2)
-	    if os.path.dirname(keyIn2) == maildirPathNew :
-		mailsInNew.append(keyIn2)
+	    if os.path.basename(os.path.dirname(keyIn2)) == "cur" :
+			mailsInCur.append(keyIn2)
+	    if os.path.basename(os.path.dirname(keyIn2)) == "new" :
+			mailsInNew.append(keyIn2)
 	
 	if len(mailsInNew) > 0:
 	    if len(mailsInCur) > 0:
@@ -266,6 +263,9 @@ parser.add_option("-q", "--quiet",
 parser.add_option("-w", "--write",
                   action="store_true", dest="write", default=False,
                   help="write changes to filesystem (delete duplicates)")
+parser.add_option("-r", "--recursive",
+                  action="store_true", dest="recursive", default=False,
+                  help="search Maildir recursively")
 
 (options, args) = parser.parse_args()
 
@@ -284,15 +284,19 @@ if not os.path.isdir(maildirPathCur) or not os.path.isdir(maildirPathNew):
     sys.exit(1)
 
 filenamesSizes = {}
-readinDir(maildirPathCur, filenamesSizes)
-readinDir(maildirPathNew, filenamesSizes)
-
+if not options.recursive:
+    readinDir(maildirPathCur, filenamesSizes)
+    readinDir(maildirPathNew, filenamesSizes)
+else:
+    for dirpath, dirnames, filenames in os.walk(optMaildir):
+        if os.path.basename(dirpath) in ["cur", "new"]:
+            readinDir(dirpath, filenamesSizes)
 
 duplicateMails = []
 buildDuplicatesList(filenamesSizes, duplicateMails)
 decisionTable = []
 
-buildDecisionTable(optMaildir, duplicateMails, decisionTable)
+buildDecisionTable(duplicateMails, decisionTable)
 
 
 assert( len(duplicateMails) == len(decisionTable) )
